@@ -2,7 +2,7 @@ import os
 import requests
 from bs4 import BeautifulSoup
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
 # Function to read URLs from the text file
 def read_urls():
@@ -23,11 +23,11 @@ def scrape_website(url):
         return f"Error scraping {url}: {e}"
 
 # Command handler for /start
-def start(update: Update, context: CallbackContext):
-    update.message.reply_text("Hello! I'm your bot. Ask me about anything, and I'll fetch the relevant info for you.")
+async def start(update: Update, context: CallbackContext):
+    await update.message.reply_text("Hello! I'm your bot. Ask me about anything, and I'll fetch the relevant info for you.")
 
 # Message handler for user queries
-def handle_message(update: Update, context: CallbackContext):
+async def handle_message(update: Update, context: CallbackContext):
     user_input = update.message.text.lower()
     urls = read_urls()
 
@@ -36,26 +36,24 @@ def handle_message(update: Update, context: CallbackContext):
         url = next((u for u in urls if "w3schools.com/html" in u), None)
         if url:
             content = scrape_website(url)
-            update.message.reply_text(f"Here's what I found about HTML:\n\n{content[:1000]}...")  # Limit response length
+            await update.message.reply_text(f"Here's what I found about HTML:\n\n{content[:1000]}...")  # Limit response length
         else:
-            update.message.reply_text("Sorry, I couldn't find any HTML tutorial links.")
+            await update.message.reply_text("Sorry, I couldn't find any HTML tutorial links.")
     else:
-        update.message.reply_text("I'm not sure what you're asking. Try asking about HTML!")
+        await update.message.reply_text("I'm not sure what you're asking. Try asking about HTML!")
 
 # Main function to run the bot
 def main():
     # Replace 'YOUR_BOT_TOKEN' with your actual bot token
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")  # Use environment variable for security
-    updater = Updater(bot_token, use_context=True)
-    dp = updater.dispatcher
+    application = Application.builder().token(bot_token).build()
 
     # Add handlers
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Start the bot
-    updater.start_polling()
-    updater.idle()
+    application.run_polling()
 
 if __name__ == "__main__":
     main()
