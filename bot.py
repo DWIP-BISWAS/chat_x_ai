@@ -1,5 +1,6 @@
 import os
 import re
+import string
 from urllib.parse import urlparse
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
@@ -10,11 +11,13 @@ IGNORE_WORDS = {"what", "is", "how", "to", "explain", "does", "the", "are", "why
 # List of file extensions to remove from search queries (not URLs)
 EXTENSIONS = (".html", ".php", ".txt", ".json", ".xml", ".css", ".js")
 
-# Function to clean user input
+# Function to clean user input (removes punctuation and stopwords)
 def clean_query(query):
-    words = re.split(r'\W+', query.lower())  # Split by non-alphanumeric characters
+    query = query.lower()  # Convert to lowercase
+    query = query.translate(str.maketrans("", "", string.punctuation))  # Remove punctuation
+    words = query.split()  # Split into words
     filtered_words = [word for word in words if word not in IGNORE_WORDS]  # Remove ignored words
-    return " ".join(filtered_words).strip()
+    return filtered_words  # Return list of cleaned keywords
 
 # Function to clean URLs for searching (removes file extensions)
 def clean_url_text(url):
@@ -23,27 +26,33 @@ def clean_url_text(url):
         url_text = url_text.replace(ext, "")  # Remove extensions
     return url_text
 
-# Function to find all matching files based on query keywords
-def get_matching_files(query_keywords):
+# Function to find files that match at least one keyword
+def find_matching_files(keywords):
     matching_files = []
-    for filename in os.listdir():  # Search in root folder
-        if filename.endswith(".txt") and any(keyword in filename.lower() for keyword in query_keywords):
-            matching_files.append(filename)
+    for filename in os.listdir():  # Search in root directory
+        if filename.endswith(".txt"):  # Check only text files
+            file_keywords = filename.replace(".txt", "").lower().split("_")  # Split filename into words
+            if any(keyword in file_keywords for keyword in keywords):  # If any keyword matches
+                matching_files.append(filename)
     return matching_files
 
-# Function to search URLs inside relevant files
-def search_urls(query):
-    query_keywords = clean_query(query).split()
-    matching_files = get_matching_files(query_keywords)  # Find all relevant files
+# Function to search for relevant URLs inside files
+def search_urls_in_files(query_keywords):
+    matching_files = find_matching_files(query_keywords)  # Find relevant files
     results = []
 
-    for file in matching_files:
-        with open(file, "r") as f:
-            urls = f.read().splitlines()
+    for filename in matching_files:
+        with open(filename, "r") as file:
+            urls = file.read().splitlines()  # Read URLs from file
+
             for url in urls:
-                if all(keyword in clean_url_text(url) for keyword in query_keywords):  # Match all keywords
+                lower_url = clean_url_text(url)  # Clean URL text before searching
+                if all(keyword in lower_url for keyword in query_keywords):  # Must contain all keywords
+                    # Extract site name for button text
                     parsed_url = urlparse(url)
-                    site_name = parsed_url.path.split("/")[-1] or parsed_url.netloc.split(".")[0].capitalize()
+                    site_name = parsed_url.path.split("/")[-1]  # Get last part of the path
+                    if not site_name:
+                        site_name = parsed_url.netloc.replace("www.", "").split(".")[0].capitalize()
                     results.append((site_name, url))
 
     return results
@@ -68,9 +77,13 @@ async def start(update: Update, context: CallbackContext):
 # Message handler for user queries
 async def handle_message(update: Update, context: CallbackContext):
     user_input = update.message.text.lower()
-    cleaned_query = clean_query(user_input)  # Clean the query
+    query_keywords = clean_query(user_input)  # Clean the query
 
-    results = search_urls(cleaned_query)
+    if not query_keywords:
+        await update.message.reply_text("⚠️ *Please enter a valid search query!*", parse_mode="Markdown")
+        return
+
+    results = search_urls_in_files(query_keywords)
 
     if results:
         message = "**Here's what I found:**\n\n"
