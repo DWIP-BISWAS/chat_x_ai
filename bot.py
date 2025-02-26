@@ -1,47 +1,62 @@
 import os
 import re
-from urllib.parse import urlparse
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
 # List of words to ignore in queries
 IGNORE_WORDS = {"what", "is", "how", "to", "explain", "does", "the", "are", "why", "where", "who", "was", "can"}
 
-# List of file extensions to remove from search queries (not URLs)
-EXTENSIONS = (".html", ".php", ".txt", ".json", ".xml", ".css", ".js")
+# List of file extensions to remove
+EXTENSIONS = {".html", ".php", ".txt", ".json", ".xml", ".css", ".js"}
+
+# Folder where category files are stored
+CATEGORY_FOLDER = "categories"
 
 # Function to clean user input
 def clean_query(query):
     words = re.split(r'\W+', query.lower())  # Split by non-alphanumeric characters
-    filtered_words = [word for word in words if word not in IGNORE_WORDS]  # Remove ignored words
-    return " ".join(filtered_words).strip()
+    filtered_words = [word for word in words if word not in IGNORE_WORDS]  # Remove common words
+    cleaned_query = " ".join(filtered_words)
 
-# Function to clean URLs for searching (removes file extensions)
-def clean_url_text(url):
-    url_text = url.lower()
+    # Remove file extensions
     for ext in EXTENSIONS:
-        url_text = url_text.replace(ext, "")  # Remove extensions
-    return url_text
+        cleaned_query = cleaned_query.replace(ext, "")
 
-# Function to read URLs from the text file
-def read_urls():
-    with open("urls.txt", "r") as file:
-        return file.read().splitlines()
+    return cleaned_query.strip()
 
-# Function to search for relevant URLs based on keywords
-def search_urls(query, urls):
-    keywords = clean_query(query).split()
+# Function to get category file based on query
+def get_category_file(query):
+    query_keywords = set(query.split())
+
+    # Check which file contains at least one matching keyword
+    for filename in os.listdir(CATEGORY_FOLDER):
+        file_keywords = set(filename.replace(".txt", "").split(","))  # Extract keywords from filename
+        if query_keywords & file_keywords:  # Check for intersection
+            return os.path.join(CATEGORY_FOLDER, filename)
+    
+    return None  # If no category file matches
+
+# Function to read URLs from the relevant category file
+def read_urls(category_file):
+    if category_file and os.path.exists(category_file):
+        with open(category_file, "r") as file:
+            urls = file.read().splitlines()
+        return urls
+    return []
+
+# Function to search for relevant URLs in the correct category file
+def search_urls(query):
+    category_file = get_category_file(query)  # Find correct category file
+    if not category_file:
+        return []  # No matching category file
+
+    urls = read_urls(category_file)
     results = []
 
     for url in urls:
-        lower_url = clean_url_text(url)  # Clean URL text before searching
-        if all(keyword in lower_url for keyword in keywords):  
-            # Extract site name for button text
-            parsed_url = urlparse(url)
-            site_name = parsed_url.path.split("/")[-1]  # Get last part of the path
-            if not site_name:
-                site_name = parsed_url.netloc.replace("www.", "").split(".")[0].capitalize()
-            results.append((site_name, url))
+        lower_url = url.lower()
+        if any(keyword in lower_url for keyword in query.split()):  # Check if any keyword is present
+            results.append(url)
 
     return results
 
@@ -66,13 +81,11 @@ async def start(update: Update, context: CallbackContext):
 async def handle_message(update: Update, context: CallbackContext):
     user_input = update.message.text.lower()
     cleaned_query = clean_query(user_input)  # Clean the query
-    urls = read_urls()
-
-    results = search_urls(cleaned_query, urls)
+    results = search_urls(cleaned_query)
 
     if results:
         message = "**Here's what I found:**\n\n"
-        keyboard = [[InlineKeyboardButton(f"Click here {i+1}", url=url)] for i, (_, url) in enumerate(results)]
+        keyboard = [[InlineKeyboardButton(f"Click here {i+1}", url=url)] for i, url in enumerate(results)]
     else:
         message = (
             f"⚠️ *I couldn't find an answer for '{user_input}'!*\n\n"
