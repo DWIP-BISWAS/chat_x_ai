@@ -16,19 +16,26 @@ async def scrape_website(url):
             url = f"https://{url}"
 
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)  # Launch headless browser
-            context = await browser.new_context()  # Create a new browser context to isolate the session
+            # Launch browser with lightweight settings
+            browser = await p.chromium.launch(headless=True, timeout=60000)  # Increase timeout
+            context = await browser.new_context()
+
+            # Block unnecessary resources (e.g., images, stylesheets) to speed up loading
+            await context.route("**/*", lambda route: route.abort() 
+                if route.request.resource_type in {"image", "stylesheet", "font", "script"} 
+                else route.continue_()
+            )
+
             page = await context.new_page()
-            
-            # Enable Playwright debugging for more details (optional)
-            # For debugging purposes, uncomment the line below to see what happens in the browser
-            # await page.goto(url, timeout=60000, wait_until="load")  # Wait until page is fully loaded
-            await page.goto(url, timeout=60000, wait_until="load")  # Wait for load state to finish
 
-            # Ensure content is fully loaded
-            await page.wait_for_load_state("load")  # Wait for page load to complete
+            # Navigate to the URL with a longer timeout
+            await page.goto(url, timeout=60000, wait_until="domcontentloaded")  # Wait for DOM content to load
 
-            content = await page.inner_text("body")  # Scrape the body text
+            # Wait for the page to fully load
+            await page.wait_for_load_state("networkidle")  # Wait for network activity to stop
+
+            # Scrape the body text
+            content = await page.inner_text("body")
             await browser.close()
             return content
     except Exception as e:
