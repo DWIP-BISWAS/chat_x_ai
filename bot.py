@@ -3,6 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
+from ddg_search import ddg  # DuckDuckGo search (No API needed)
 
 # Function to read URLs from a text file
 def read_urls():
@@ -19,27 +20,22 @@ def scrape_website(url):
             return f"Error {response.status_code}: Unable to access {url}"
         
         soup = BeautifulSoup(response.text, "html.parser")
-        return soup.get_text()[:1000]  # Limit to 1000 characters
+        content = soup.get_text().strip()
+        
+        # Limit text to 1000 chars but show "Read more" link
+        if len(content) > 1000:
+            return f"{content[:1000]}...\n\n[Read more]({url})"
+        return f"{content}\n\n[Source]({url})"
+    
     except Exception as e:
         return f"Error scraping {url}: {e}"
 
-# Function to search Google when no info is found
-def google_search(query):
-    try:
-        headers = {"User-Agent": "Mozilla/5.0"}
-        url = f"https://www.google.com/search?q={query.replace(' ', '+')}"
-        response = requests.get(url, headers=headers, timeout=10)
-
-        if response.status_code != 200:
-            return None
-
-        soup = BeautifulSoup(response.text, "html.parser")
-        results = soup.select("a[href^='http']")
-
-        links = [link["href"] for link in results if "google" not in link["href"]]
-        return links[:3]  # Return top 3 results
-    except Exception as e:
-        return None
+# Function to search DuckDuckGo (No API needed)
+def duckduckgo_search(query):
+    results = ddg(query, max_results=3)
+    if results:
+        return [f"[{r['title']}]({r['href']})" for r in results]
+    return None
 
 # Command handler for /start
 async def start(update: Update, context: CallbackContext):
@@ -54,18 +50,18 @@ async def handle_message(update: Update, context: CallbackContext):
     for url in urls:
         content = scrape_website(url)
         if user_input in url or user_input in content.lower():
-            await update.message.reply_text(f"Here's what I found about {user_input}:\n\n{content}...")
+            await update.message.reply_text(f"Here's what I found about **{user_input}**:\n\n{content}", parse_mode="Markdown")
             return
 
-    # If no info is found, search Google
-    await update.message.reply_text(f"Searching Google for '{user_input}'...")
-    google_results = google_search(user_input)
+    # If no info is found, search DuckDuckGo
+    await update.message.reply_text(f"Searching DuckDuckGo for '**{user_input}**'...", parse_mode="Markdown")
+    search_results = duckduckgo_search(user_input)
 
-    if google_results:
-        results_message = "\n".join(google_results)
-        await update.message.reply_text(f"Here are some links:\n{results_message}")
+    if search_results:
+        results_message = "\n".join(search_results)
+        await update.message.reply_text(f"🔍 **Search results:**\n\n{results_message}", parse_mode="Markdown")
     else:
-        await update.message.reply_text(f"Sorry, no relevant info found on '{user_input}'.")
+        await update.message.reply_text(f"Sorry, no relevant info found on '**{user_input}**'.", parse_mode="Markdown")
 
 # Main function to run the bot
 def main():
