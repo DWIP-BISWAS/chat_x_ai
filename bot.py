@@ -1,6 +1,4 @@
 import os
-import requests
-from bs4 import BeautifulSoup
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 from playwright.async_api import async_playwright  # Use Async API
@@ -16,11 +14,20 @@ async def scrape_website(url):
     try:
         if not url.startswith("http"):
             url = f"https://{url}"
+
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)  # Run headless browser for efficiency
-            page = await browser.new_page()
-            await page.goto(url, timeout=60000, wait_until="networkidle")  # Wait until the page is fully loaded
-            await page.wait_for_selector("body")  # Ensure the body element is loaded
+            browser = await p.chromium.launch(headless=True)  # Launch headless browser
+            context = await browser.new_context()  # Create a new browser context to isolate the session
+            page = await context.new_page()
+            
+            # Enable Playwright debugging for more details (optional)
+            # For debugging purposes, uncomment the line below to see what happens in the browser
+            # await page.goto(url, timeout=60000, wait_until="load")  # Wait until page is fully loaded
+            await page.goto(url, timeout=60000, wait_until="load")  # Wait for load state to finish
+
+            # Ensure content is fully loaded
+            await page.wait_for_load_state("load")  # Wait for page load to complete
+
             content = await page.inner_text("body")  # Scrape the body text
             await browser.close()
             return content
