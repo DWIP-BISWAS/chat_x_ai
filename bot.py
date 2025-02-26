@@ -3,7 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
-from playwright.sync_api import sync_playwright
+from playwright.async_api import async_playwright  # Import Async API
 
 # Function to read URLs from the text file
 def read_urls():
@@ -12,16 +12,16 @@ def read_urls():
     return urls
 
 # Function to scrape website content
-def scrape_website(url):
+async def scrape_website(url):
     try:
         if not url.startswith("http"):
             url = f"https://{url}"
-        with sync_playwright() as p:
-            browser = p.chromium.launch()
-            page = browser.new_page()
-            page.goto(url)
-            content = page.inner_text("body")  # Scrape all text in the body
-            browser.close()
+        async with async_playwright() as p:  # Use async Playwright API
+            browser = await p.chromium.launch()
+            page = await browser.new_page()
+            await page.goto(url)
+            content = await page.inner_text("body")  # Scrape all text in the body
+            await browser.close()
             return content
     except Exception as e:
         return f"Error scraping {url}: {e}"
@@ -37,7 +37,7 @@ async def handle_message(update: Update, context: CallbackContext):
 
     found = False
     for url in urls:
-        content = scrape_website(url)
+        content = await scrape_website(url)  # Await the async function
         if user_input in url or user_input in content.lower():
             await update.message.reply_text(f"Here's what I found about {user_input}:\n\n{content[:1000]}...")
             found = True
