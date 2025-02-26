@@ -32,21 +32,20 @@ def get_category_file(query_keywords):
                 return filename  # Return the matching file
     return None
 
-# Function to read URLs from the correct category file
-def read_urls(category_file):
+# Function to read and filter URLs from a file based on the query
+def search_urls_in_file(query, category_file):
+    query_keywords = set(clean_query(query).split())  # Convert query to keyword set
+    results = []
+    
     with open(category_file, "r", encoding="utf-8") as file:
-        return file.read().splitlines()
+        for line in file:
+            cleaned_line = clean_url_text(line)  # Clean the line for matching
+            if all(keyword in cleaned_line for keyword in query_keywords):  # Match all keywords
+                parsed_url = urlparse(line.strip())
+                site_name = parsed_url.netloc.replace("www.", "").split(".")[0].capitalize()
+                results.append((site_name, line.strip()))
 
-# Function to search for relevant URLs in the category file
-def search_urls(query):
-    query_keywords = set(clean_query(query).split())  # Convert input to keyword set
-    category_file = get_category_file(query_keywords)  # Find correct category file
-    
-    if category_file:
-        urls = read_urls(category_file)  # Read URLs from the matched file
-        return [(urlparse(url).netloc.replace("www.", "").split(".")[0].capitalize(), url) for url in urls]
-    
-    return []
+    return results
 
 # Command handler for /start
 async def start(update: Update, context: CallbackContext):
@@ -68,7 +67,13 @@ async def start(update: Update, context: CallbackContext):
 # Message handler for user queries
 async def handle_message(update: Update, context: CallbackContext):
     user_input = update.message.text.lower()
-    results = search_urls(user_input)
+    query_keywords = set(clean_query(user_input).split())
+
+    category_file = get_category_file(query_keywords)  # Find correct category file
+    if category_file:
+        results = search_urls_in_file(user_input, category_file)  # Search inside the file
+    else:
+        results = []
 
     if results:
         message = "**Here's what I found:**\n\n"
