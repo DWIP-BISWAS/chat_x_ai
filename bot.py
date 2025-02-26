@@ -1,7 +1,25 @@
 import os
-from telegram import Update
+import re
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+# List of words to ignore in queries
+IGNORE_WORDS = {"what", "is", "how", "to", "explain", "does", "the", "are", "why", "where", "who", "was", "can"}
+
+# List of file extensions to remove
+EXTENSIONS = {".html", ".php", ".txt", ".json", ".xml", ".css", ".js"}
+
+# Function to clean user input
+def clean_query(query):
+    words = re.split(r'\W+', query.lower())  # Split by non-alphanumeric characters
+    filtered_words = [word for word in words if word not in IGNORE_WORDS]  # Remove common words
+    cleaned_query = " ".join(filtered_words)
+
+    # Remove file extensions
+    for ext in EXTENSIONS:
+        cleaned_query = cleaned_query.replace(ext, "")
+
+    return cleaned_query.strip()
 
 # Function to read URLs from the text file
 def read_urls():
@@ -11,12 +29,13 @@ def read_urls():
 
 # Function to search for relevant URLs based on keywords
 def search_urls(query, urls):
-    keywords = query.lower().split()  # Break user input into words
+    keywords = clean_query(query).split()  # Clean query before searching
     results = []
 
     for url in urls:
         lower_url = url.lower()
-        if any(keyword in lower_url for keyword in keywords):  # Match any keyword
+        # ✅ Show URLs if ANY keyword matches
+        if all(keyword in lower_url for keyword in keywords):  
             results.append(url)
 
     return results
@@ -41,9 +60,10 @@ async def start(update: Update, context: CallbackContext):
 # Message handler for user queries
 async def handle_message(update: Update, context: CallbackContext):
     user_input = update.message.text.lower()
+    cleaned_query = clean_query(user_input)  # Clean the query
     urls = read_urls()
 
-    results = search_urls(user_input, urls)
+    results = search_urls(cleaned_query, urls)
 
     if results:
         message = "**Here's what I found:**\n\n"
