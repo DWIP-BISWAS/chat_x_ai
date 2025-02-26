@@ -1,9 +1,7 @@
 import os
-import re
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
-from bs4 import BeautifulSoup
-import requests
+import asyncio
 
 # Function to read URLs from the text file
 def read_urls():
@@ -11,71 +9,48 @@ def read_urls():
         urls = file.read().splitlines()
     return urls
 
-# Function to clean user input by removing common question words
-def clean_query(query):
-    ignore_words = ["how to", "what is", "who is", "where is", "how are", "explain", "define", "meaning of"]
-    for word in ignore_words:
-        query = query.replace(word, "").strip()
-    return query
+# Function to search for relevant URLs based on keywords
+def search_urls(query, urls):
+    keywords = query.lower().split()  # Break user input into words
+    results = []
 
-# Function to scrape website content
-def scrape_website(url):
-    try:
-        response = requests.get(url, timeout=10)
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, "html.parser")
-            content = soup.get_text(separator="\n", strip=True)
-            return content[:1500]  # Limit text to 1500 characters
-        else:
-            return f"Could not fetch data from {url}"
-    except Exception as e:
-        return f"Error scraping {url}: {e}"
+    for url in urls:
+        lower_url = url.lower()
+        if any(keyword in lower_url for keyword in keywords):  # Match any keyword
+            results.append(url)
 
-# Contact information message
-contact_message = (
-    "💡 *Want to contribute or add missing topics?*\n"
-    "📩 Message the developer:\n"
-    "📞 **WhatsApp:** [Click Here](https://wa.me/918629986990)\n"
-    "💬 **Telegram:** @+918629986990"
-)
+    return results
 
 # Command handler for /start
 async def start(update: Update, context: CallbackContext):
-    start_message = (
-        "👋 **Welcome to X.AI!**\n\n"
-        "I'm X.AI, your assistant for finding answers to most of your questions. 🚀\n"
-        "I'm currently under development, and you can help make me better! 🛠️\n\n"
-        + contact_message
+    welcome_message = (
+        "**Welcome to X.AI!** 🤖\n"
+        "I'm a coding and tutorial bot that helps find answers to most questions!\n"
+        "I'm under development, and you can help make me better!\n\n"
+        "📩 **Contact Developer:**\n"
+        "👉 **WhatsApp:** [wa.me/918629986990](https://wa.me/918629986990)\n"
+        "👉 **Telegram:** @YourUsername"
     )
-    
-    await update.message.reply_text(start_message, parse_mode="Markdown", disable_web_page_preview=True)
+    await update.message.reply_text(welcome_message, parse_mode="Markdown")
 
 # Message handler for user queries
 async def handle_message(update: Update, context: CallbackContext):
     user_input = update.message.text.lower()
-    user_input = clean_query(user_input)  # Clean input query
-
     urls = read_urls()
-    found = False
 
-    for url in urls:
-        content = scrape_website(url)
-        if user_input in url or user_input in content.lower():
-            await update.message.reply_text(
-                f"**Here's what I found about {user_input}:**\n\n{content}...\n\n🔗 [Read more]({url})",
-                parse_mode="Markdown",
-                disable_web_page_preview=True  # Avoid large link previews
-            )
-            found = True
-            break
+    results = search_urls(user_input, urls)
 
-    if not found:
-        await update.message.reply_text(
-            f"❌ No results found for '{user_input}'.\n\n"
-            "💡 *Ask the developer to add this topic!*\n\n" + contact_message,
-            parse_mode="Markdown",
-            disable_web_page_preview=True
+    if results:
+        response = "**Here's what I found:**\n\n" + "\n".join([f"🔗 {url}" for url in results])
+    else:
+        response = (
+            f"⚠️ *I couldn't find an answer for '{user_input}'!*\n\n"
+            "Please message the developer to add this topic! 📩\n"
+            "👉 **WhatsApp:** [wa.me/918629986990](https://wa.me/918629986990)\n"
+            "👉 **Telegram:** @dwip_the_dev"
         )
+
+    await update.message.reply_text(response, parse_mode="Markdown")
 
 # Main function to run the bot
 def main():
