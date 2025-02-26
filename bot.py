@@ -31,19 +31,24 @@ def scrape_website(url):
     except Exception as e:
         return f"Error scraping {url}: {e}"
 
+# Contact information message
+contact_message = (
+    "💡 *Want to contribute or add missing topics?*\n"
+    "📩 Message the developer:\n"
+    "📞 **WhatsApp:** [Click Here](https://wa.me/918629986990)\n"
+    "💬 **Telegram:** @+918629986990"
+)
+
 # Command handler for /start
 async def start(update: Update, context: CallbackContext):
     start_message = (
         "👋 **Welcome to X.AI!**\n\n"
         "I'm X.AI, your assistant for finding answers to most of your questions. 🚀\n"
         "I'm currently under development, and you can help make me better! 🛠️\n\n"
-        "**Want to contribute?**\n"
-        "📩 Message my developer:\n"
-        "📞 **Phone:** +918629986990\n"
-        "💬 **Telegram:** @+918629986990"
+        + contact_message
     )
     
-    await update.message.reply_text(start_message, parse_mode="Markdown")
+    await update.message.reply_text(start_message, parse_mode="Markdown", disable_web_page_preview=True)
 
 # Message handler for user queries
 async def handle_message(update: Update, context: CallbackContext):
@@ -66,9 +71,10 @@ async def handle_message(update: Update, context: CallbackContext):
 
     if not found:
         await update.message.reply_text(
-            f"❌ No results found for '{user_input}'.\n\n📩 Message the developer to add more sources!"\n "📩 Message my developer:\n"
-        "📞 **Phone:** +918629986990\n"
-        "💬 **Telegram:** @+918629986990"
+            f"❌ No results found for '{user_input}'.\n\n"
+            "💡 *Ask the developer to add this topic!*\n\n" + contact_message,
+            parse_mode="Markdown",
+            disable_web_page_preview=True
         )
 
 # Main function to run the bot
