@@ -1,19 +1,27 @@
 import os
 import re
+from urllib.parse import urlparse
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
 # List of words to ignore in queries
 IGNORE_WORDS = {"what", "is", "how", "to", "explain", "does", "the", "are", "why", "where", "who", "was", "can"}
 
-# List of file extensions to remove from display text
+# List of file extensions to remove from search queries (not URLs)
 EXTENSIONS = (".html", ".php", ".txt", ".json", ".xml", ".css", ".js")
 
 # Function to clean user input
 def clean_query(query):
     words = re.split(r'\W+', query.lower())  # Split by non-alphanumeric characters
-    filtered_words = [word for word in words if word not in IGNORE_WORDS]  # Remove common words
+    filtered_words = [word for word in words if word not in IGNORE_WORDS]  # Remove ignored words
     return " ".join(filtered_words).strip()
+
+# Function to clean URLs for searching (removes file extensions)
+def clean_url_text(url):
+    url_text = url.lower()
+    for ext in EXTENSIONS:
+        url_text = url_text.replace(ext, "")  # Remove extensions
+    return url_text
 
 # Function to read URLs from the text file
 def read_urls():
@@ -26,11 +34,14 @@ def search_urls(query, urls):
     results = []
 
     for url in urls:
-        lower_url = url.lower()
+        lower_url = clean_url_text(url)  # Clean URL text before searching
         if all(keyword in lower_url for keyword in keywords):  
-            # Remove file extensions from display text but keep the actual URL
-            display_text = re.sub(r'\.(html|php|txt|json|xml|css|js)$', '', url, flags=re.IGNORECASE)
-            results.append((display_text, url))
+            # Extract site name for button text
+            parsed_url = urlparse(url)
+            site_name = parsed_url.path.split("/")[-1]  # Get last part of the path
+            if not site_name:
+                site_name = parsed_url.netloc.replace("www.", "").split(".")[0].capitalize()
+            results.append((site_name, url))
 
     return results
 
@@ -54,14 +65,14 @@ async def start(update: Update, context: CallbackContext):
 # Message handler for user queries
 async def handle_message(update: Update, context: CallbackContext):
     user_input = update.message.text.lower()
-    cleaned_query = clean_query(user_input)
+    cleaned_query = clean_query(user_input)  # Clean the query
     urls = read_urls()
 
     results = search_urls(cleaned_query, urls)
 
     if results:
         message = "**Here's what I found:**\n\n"
-        keyboard = [[InlineKeyboardButton(f"Click here {i+1}: {text}", url=url)] for i, (text, url) in enumerate(results)]
+        keyboard = [[InlineKeyboardButton(f"Click here {i+1}", url=url)] for i, (_, url) in enumerate(results)]
     else:
         message = (
             f"⚠️ *I couldn't find an answer for '{user_input}'!*\n\n"
