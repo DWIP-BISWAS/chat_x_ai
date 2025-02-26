@@ -1,4 +1,5 @@
-www.google.com
-www.wikipedia.org
-www.w3schools.com/html
-https://www.wikihow.com/Pranks-for-Kids
+www.google.com/
+www.wikipedia.org/
+www.w3schools.com/html/
+https://www.wikihow.com/Pranks-for-Kids/
+https://html.com/
