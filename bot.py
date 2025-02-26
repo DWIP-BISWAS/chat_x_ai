@@ -31,16 +31,18 @@ async def handle_message(update: Update, context: CallbackContext):
     user_input = update.message.text.lower()
     urls = read_urls()
 
-    # Check if the user is asking about HTML
-    if "html" in user_input:
-        url = next((u for u in urls if "w3schools.com/html" in u), None)
-        if url:
+    # Check if any URL matches the user's query
+    found = False
+    for url in urls:
+        if user_input in url:  # Check if the query is part of the URL
             content = scrape_website(url)
-            await update.message.reply_text(f"Here's what I found about HTML:\n\n{content[:1000]}...")  # Limit response length
-        else:
-            await update.message.reply_text("Sorry, I couldn't find any HTML tutorial links.")
-    else:
-        await update.message.reply_text("I'm not sure what you're asking. Try asking about HTML!")
+            if content:
+                await update.message.reply_text(f"Here's what I found about {user_input}:\n\n{content[:1000]}...")  # Limit response length
+                found = True
+                break
+
+    if not found:
+        await update.message.reply_text(f"Sorry, I couldn't find any information about {user_input}.")
 
 # Main function to run the bot
 def main():
