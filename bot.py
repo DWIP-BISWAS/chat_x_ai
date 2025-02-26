@@ -7,53 +7,53 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 # List of words to ignore in queries
 IGNORE_WORDS = {"what", ".", "!", ";", "`", "~", "@", "is", "how", "to", "#", "$", "%", "^", "&", "*", "(", ")", "-","_", "=", "+", "|", "]", "[", "{", "}", ":", "?", "explain",",", "does", "the", "are", "why", "where", "who", "was", "can"}
 
-# List of file extensions to remove from search queries (not URLs)
+# List of file extensions to remove from search queries
 EXTENSIONS = (".html", ".php", ".txt", ".json", ".xml", ".css", ".js")
 
 # Function to clean user input
 def clean_query(query):
-    words = re.split(r'\W+', query.lower())  # Split by non-alphanumeric characters
-    filtered_words = [word for word in words if word not in IGNORE_WORDS]  # Remove ignored words
+    words = re.split(r'\W+', query.lower())
+    filtered_words = [word for word in words if word not in IGNORE_WORDS]
     return " ".join(filtered_words).strip()
 
-# Function to clean URLs for searching (removes file extensions)
+# Function to clean URLs
 def clean_url_text(url):
     url_text = url.lower()
     for ext in EXTENSIONS:
-        url_text = url_text.replace(ext, "")  # Remove extensions
+        url_text = url_text.replace(ext, "")
     return url_text
 
-# Function to find all matching files based on query keywords
+# Function to find matching files
 def get_matching_files(query_keywords):
     matching_files = []
-    for filename in os.listdir():  # Search in root folder
+    for filename in os.listdir():
         if filename.endswith(".txt") and any(keyword in filename.lower() for keyword in query_keywords):
             matching_files.append(filename)
     return matching_files
 
-# Function to search URLs inside relevant files
+# Function to search URLs inside files
 def search_urls(query):
     query_keywords = clean_query(query).split()
-    matching_files = get_matching_files(query_keywords)  # Find all relevant files
+    matching_files = get_matching_files(query_keywords)
     results = []
 
     for file in matching_files:
         with open(file, "r") as f:
             urls = f.read().splitlines()
             for url in urls:
-                if all(keyword in clean_url_text(url) for keyword in query_keywords):  # Match all keywords
+                if all(keyword in clean_url_text(url) for keyword in query_keywords):
                     parsed_url = urlparse(url)
                     site_name = parsed_url.path.split("/")[-1] or parsed_url.netloc.split(".")[0].capitalize()
                     results.append((site_name, url))
 
     return results
 
-# Command handler for /start
+# /start command
 async def start(update: Update, context: CallbackContext):
     welcome_message = (
         "**Welcome to X.AI!** 🤖\n"
         "I'm a coding and tutorial bot that helps find answers to most questions!\n"
-        "I'm under development, and you can help make me better!\n\n"
+        "Use /help to see available commands!\n\n"
         "📩 **Contact Developer:**"
     )
     
@@ -65,10 +65,63 @@ async def start(update: Update, context: CallbackContext):
 
     await update.message.reply_text(welcome_message, parse_mode="Markdown", reply_markup=reply_markup)
 
-# Message handler for user queries
+# /help command
+async def help_command(update: Update, context: CallbackContext):
+    help_text = (
+        "**Available Commands:**\n"
+        "/start - Start the bot\n"
+        "/help - Show this help message\n"
+        "/info - Get bot info\n"
+        "/contribute - Contribute to X.AI\n"
+        "/contact - Contact the developer\n\n"
+        "Just type a question, and I'll try to find an answer for you! 😊"
+    )
+    await update.message.reply_text(help_text, parse_mode="Markdown")
+
+# /info command
+async def info_command(update: Update, context: CallbackContext):
+    info_text = (
+        "**X.AI Bot Info:**\n"
+        "🤖 **Version:** 1.0\n"
+        "📌 **Purpose:** Coding and tutorial assistant\n"
+        "💡 **Status:** Under development\n"
+        "🛠 **Developer:** [Dwip](https://t.me/dwip_thedev)\n\n"
+        "Want to contribute? Use /contribute!"
+    )
+    await update.message.reply_text(info_text, parse_mode="Markdown")
+
+# /contribute command
+async def contribute_command(update: Update, context: CallbackContext):
+    contribute_text = (
+        "**Contribute to X.AI!** 🚀\n"
+        "Want to help improve this bot? You can contribute by:\n"
+        "- Suggesting new features\n"
+        "- Providing coding resources\n"
+        "- Reporting bugs\n\n"
+        "📩 Contact the developer to contribute!"
+    )
+    keyboard = [
+        [InlineKeyboardButton("Contact Dev", url="https://t.me/dwip_thedev")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(contribute_text, parse_mode="Markdown", reply_markup=reply_markup)
+
+# /contact command
+async def contact_command(update: Update, context: CallbackContext):
+    contact_text = "**Need help? Contact the developer!** 📩"
+    keyboard = [
+        [InlineKeyboardButton("WhatsApp", url="https://wa.me/918629986990")],
+        [InlineKeyboardButton("Telegram", url="https://t.me/dwip_thedev")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(contact_text, parse_mode="Markdown", reply_markup=reply_markup)
+
+# Handle user queries
 async def handle_message(update: Update, context: CallbackContext):
     user_input = update.message.text.lower()
-    cleaned_query = clean_query(user_input)  # Clean the query
+    cleaned_query = clean_query(user_input)
 
     results = search_urls(cleaned_query)
 
@@ -93,8 +146,12 @@ def main():
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")  # Use environment variable for security
     application = Application.builder().token(bot_token).build()
 
-    # Add handlers
+    # Add command handlers
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("info", info_command))
+    application.add_handler(CommandHandler("contribute", contribute_command))
+    application.add_handler(CommandHandler("contact", contact_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     # Start the bot
