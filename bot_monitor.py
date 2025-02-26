@@ -4,7 +4,7 @@ import logging
 import requests
 from flask import Flask, jsonify
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
 # Get bot token and admin ID from environment variables
 TOKEN = os.getenv("BOT_TOKEN")
@@ -21,21 +21,20 @@ app = Flask(__name__)
 # Set up logging
 logging.basicConfig(filename=error_log_file, level=logging.ERROR)
 
-def start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text('Bot is online.')
+async def start(update: Update, context) -> None:
+    await update.message.reply_text("Bot is online.")
 
-def count_messages(update: Update, context: CallbackContext) -> None:
+async def count_messages(update: Update, context) -> None:
     global message_count, last_active_time
     message_count += 1
     last_active_time = time.time()
 
-def get_status(update: Update, context: CallbackContext) -> None:
+async def get_status(update: Update, context) -> None:
     now = time.time()
     active_status = "Chatting now" if (now - last_active_time) < 10 else "Inactive"
+    await update.message.reply_text(f"Bot Status:\n- Messages Received: {message_count}\n- Status: {active_status}")
 
-    update.message.reply_text(f"Bot Status:\n- Messages Received: {message_count}\n- Status: {active_status}")
-
-def error_callback(update, context):
+async def error_callback(update: Update, context):
     logging.error(f"Error: {context.error}")
     
     # Send an alert to admin via Telegram
@@ -46,12 +45,11 @@ def error_callback(update, context):
 
 # Telegram bot setup
 if TOKEN:
-    updater = Updater(TOKEN, use_context=True)
-    dp = updater.dispatcher
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("status", get_status))
-    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, count_messages))
-    dp.add_error_handler(error_callback)
+    app_bot = Application.builder().token(TOKEN).build()
+    app_bot.add_handler(CommandHandler("start", start))
+    app_bot.add_handler(CommandHandler("status", get_status))
+    app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, count_messages))
+    app_bot.add_error_handler(error_callback)
 
 # Flask API Endpoints
 @app.route('/status', methods=['GET'])
@@ -70,5 +68,5 @@ def api_errors():
 
 if __name__ == '__main__':
     if TOKEN:
-        updater.start_polling()  # Start the bot
+        app_bot.run_polling()  # Start the bot asynchronously
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))  # Start the Flask API with Railway's assigned port
