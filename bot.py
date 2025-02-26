@@ -3,7 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
-from playwright.async_api import async_playwright  # Import Async API
+from playwright.async_api import async_playwright  # Use Async API
 
 # Function to read URLs from the text file
 def read_urls():
@@ -16,11 +16,12 @@ async def scrape_website(url):
     try:
         if not url.startswith("http"):
             url = f"https://{url}"
-        async with async_playwright() as p:  # Use async Playwright API
-            browser = await p.chromium.launch()
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)  # Run headless browser for efficiency
             page = await browser.new_page()
-            await page.goto(url)
-            content = await page.inner_text("body")  # Scrape all text in the body
+            await page.goto(url, timeout=60000, wait_until="networkidle")  # Wait until the page is fully loaded
+            await page.wait_for_selector("body")  # Ensure the body element is loaded
+            content = await page.inner_text("body")  # Scrape the body text
             await browser.close()
             return content
     except Exception as e:
