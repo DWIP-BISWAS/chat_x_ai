@@ -1,7 +1,7 @@
 import os
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
-import asyncio
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 # Function to read URLs from the text file
 def read_urls():
@@ -27,11 +27,16 @@ async def start(update: Update, context: CallbackContext):
         "**Welcome to X.AI!** 🤖\n"
         "I'm a coding and tutorial bot that helps find answers to most questions!\n"
         "I'm under development, and you can help make me better!\n\n"
-        "📩 **Contact Developer:**\n"
-        "👉 **WhatsApp:** [wa.me/918629986990](https://wa.me/918629986990)\n"
-        "👉 **Telegram:** @dwip_the_dev"
+        "📩 **Contact Developer:**"
     )
-    await update.message.reply_text(welcome_message, parse_mode="Markdown")
+    
+    keyboard = [
+        [InlineKeyboardButton("WhatsApp", url="https://wa.me/918629986990")],
+        [InlineKeyboardButton("Telegram", url="https://t.me/dwip_thedev")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(welcome_message, parse_mode="Markdown", reply_markup=reply_markup)
 
 # Message handler for user queries
 async def handle_message(update: Update, context: CallbackContext):
@@ -41,16 +46,20 @@ async def handle_message(update: Update, context: CallbackContext):
     results = search_urls(user_input, urls)
 
     if results:
-        response = "**Here's what I found:**\n\n" + "\n".join([f"🔗 {url}" for url in results])
+        message = "**Here's what I found:**\n\n"
+        keyboard = [[InlineKeyboardButton(f"Click here {i+1}", url=url)] for i, url in enumerate(results)]
     else:
-        response = (
+        message = (
             f"⚠️ *I couldn't find an answer for '{user_input}'!*\n\n"
-            "Please message the developer to add this topic! 📩\n"
-            "👉 **WhatsApp:** [wa.me/918629986990](https://wa.me/918629986990)\n"
-            "👉 **Telegram:** @dwip_the_dev"
+            "Please message the developer to add this topic! 📩"
         )
+        keyboard = [
+            [InlineKeyboardButton("WhatsApp", url="https://wa.me/918629986990")],
+            [InlineKeyboardButton("Telegram", url="https://t.me/dwip_thedev")]
+        ]
 
-    await update.message.reply_text(response, parse_mode="Markdown")
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(message, parse_mode="Markdown", reply_markup=reply_markup)
 
 # Main function to run the bot
 def main():
