@@ -1,103 +1,75 @@
 import os
-import asyncio
+import requests
+from bs4 import BeautifulSoup
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
-from playwright.async_api import async_playwright
 
-# Function to read URLs from file
+# Function to read URLs from a text file
 def read_urls():
     with open("urls.txt", "r") as file:
-        urls = file.read().splitlines()
-    return urls
+        return file.read().splitlines()
 
-# Function to scrape website data
-async def scrape_website(url):
+# Function to scrape website content
+def scrape_website(url):
     try:
-        if not url.startswith("http"):
-            url = f"https://{url}"
-
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
-            )
-
-            page = await context.new_page()
-            await page.goto(url, timeout=90000, wait_until="domcontentloaded")
-            await page.wait_for_load_state("networkidle", timeout=60000)
-
-            raw_text = await page.inner_text("body")
-
-            await browser.close()
-
-            processed_text = "\n".join([line.strip() for line in raw_text.splitlines() if line.strip()])
-            
-            return processed_text[:1000]  # Limit output to avoid Telegram spam
-
+        headers = {"User-Agent": "Mozilla/5.0"}
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        if response.status_code != 200:
+            return f"Error {response.status_code}: Unable to access {url}"
+        
+        soup = BeautifulSoup(response.text, "html.parser")
+        return soup.get_text()[:1000]  # Limit to 1000 characters
     except Exception as e:
         return f"Error scraping {url}: {e}"
 
-# Function to search Google and get the first result
-async def google_search(query):
+# Function to search Google when no info is found
+def google_search(query):
     try:
-        google_url = f"https://www.google.com/search?q={query.replace(' ', '+')}"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        url = f"https://www.google.com/search?q={query.replace(' ', '+')}"
+        response = requests.get(url, headers=headers, timeout=10)
 
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context(
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
-            )
+        if response.status_code != 200:
+            return None
 
-            page = await context.new_page()
-            await page.goto(google_url, timeout=90000, wait_until="domcontentloaded")
+        soup = BeautifulSoup(response.text, "html.parser")
+        results = soup.select("a[href^='http']")
 
-            # Extract the first search result link
-            search_results = await page.locator("h3").all()
-            if not search_results:
-                await browser.close()
-                return None
-
-            first_result = await search_results[0].evaluate("node => node.parentElement.href")
-            await browser.close()
-            return first_result
-
+        links = [link["href"] for link in results if "google" not in link["href"]]
+        return links[:3]  # Return top 3 results
     except Exception as e:
         return None
 
 # Command handler for /start
 async def start(update: Update, context: CallbackContext):
-    await update.message.reply_text("Hello! Send me a topic, and I'll fetch relevant info!")
+    await update.message.reply_text("Hello! I'm your bot. Ask me about anything, and I'll fetch the relevant info for you.")
 
 # Message handler for user queries
 async def handle_message(update: Update, context: CallbackContext):
     user_input = update.message.text.lower()
     urls = read_urls()
 
-    found = False
+    # Check if the query matches any saved URLs
     for url in urls:
-        content = await scrape_website(url)  # Await async function
+        content = scrape_website(url)
         if user_input in url or user_input in content.lower():
-            await update.message.reply_text(f"Here's what I found about '{user_input}':\n\n{content}...")
-            found = True
-            break
+            await update.message.reply_text(f"Here's what I found about {user_input}:\n\n{content}...")
+            return
 
-    if not found:
-        # Try Google Search
-        await update.message.reply_text(f"Searching Google for '{user_input}'...")
-        google_url = await google_search(user_input)
+    # If no info is found, search Google
+    await update.message.reply_text(f"Searching Google for '{user_input}'...")
+    google_results = google_search(user_input)
 
-        if google_url:
-            content = await scrape_website(google_url)
-            if "Error scraping" not in content:
-                await update.message.reply_text(f"Here's what I found from Google:\n\n{content}...\n\n(Source: {google_url})")
-            else:
-                await update.message.reply_text(f"Google found this link, but I couldn't fetch the content:\n{google_url}")
-        else:
-            await update.message.reply_text(f"Sorry, no relevant info found on '{user_input}'.")
+    if google_results:
+        results_message = "\n".join(google_results)
+        await update.message.reply_text(f"Here are some links:\n{results_message}")
+    else:
+        await update.message.reply_text(f"Sorry, no relevant info found on '{user_input}'.")
 
-# Main function to run bot
+# Main function to run the bot
 def main():
-    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN")  # Use env variable for security
     application = Application.builder().token(bot_token).build()
 
     application.add_handler(CommandHandler("start", start))
