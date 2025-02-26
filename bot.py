@@ -16,7 +16,7 @@ async def scrape_website(url):
             url = f"https://{url}"
 
         async with async_playwright() as p:
-            # Launch browser with lightweight settings
+            # Launch browser with stealth settings
             browser = await p.chromium.launch(headless=True, timeout=60000)  # Increase timeout
             context = await browser.new_context()
 
