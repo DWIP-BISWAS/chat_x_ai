@@ -3,20 +3,29 @@ import re
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
-# Function to clean query (removes common words like "what is", "how to", etc.)
+# List of words to ignore in queries
+IGNORE_WORDS = {"what", "is", "how", "to", "explain", "does", "the", "are", "why", "where", "who", "was", "can"}
+
+# List of file extensions to remove
+EXTENSIONS = {".html", ".php", ".txt", ".json", ".xml", ".css", ".js"}
+
+# Function to clean user input
 def clean_query(query):
-    stop_words = {"what", "is", "how", "to", "are", "do", "does", "the", "a", "an", "why", "where", "who", "which"}
-    words = query.lower().split()
-    filtered_words = [word for word in words if word not in stop_words]
-    return " ".join(filtered_words)
+    words = re.split(r'\W+', query.lower())  # Split by non-alphanumeric characters
+    filtered_words = [word for word in words if word not in IGNORE_WORDS]  # Remove common words
+    cleaned_query = " ".join(filtered_words)
+
+    # Remove file extensions
+    for ext in EXTENSIONS:
+        cleaned_query = cleaned_query.replace(ext, "")
+
+    return cleaned_query.strip()
 
 # Function to read URLs from the text file
 def read_urls():
-    try:
-        with open("urls.txt", "r") as file:
-            return file.read().splitlines()
-    except FileNotFoundError:
-        return []
+    with open("urls.txt", "r") as file:
+        urls = file.read().splitlines()
+    return urls
 
 # Function to search for relevant URLs based on keywords
 def search_urls(query, urls):
@@ -25,45 +34,52 @@ def search_urls(query, urls):
 
     for url in urls:
         lower_url = url.lower()
+        # ✅ Show URLs if ANY keyword matches
         if all(keyword in lower_url for keyword in keywords):  
-            # ✅ Remove file extensions from display text (but keep actual URL)
-            display_text = re.sub(r'\.(html|php|txt|json|xml|css|js)$', '', url, flags=re.IGNORECASE)
-            results.append((display_text, url))  # Store as (text, actual URL)
+            results.append(url)
 
     return results
 
 # Command handler for /start
 async def start(update: Update, context: CallbackContext):
-    message = (
-        "**Welcome to X.ai!** 🤖\n\n"
-        "I'm a **coding and tutorial bot** that helps answer your questions. "
-        "I'm still under development, and if you're interested, you can participate to help make me better!\n\n"
-        "**Just message my developer:**\n"
-        "📩 WhatsApp: +918629986990\n"
-        "📩 Telegram: @dwip_thedev"
+    welcome_message = (
+        "**Welcome to X.AI!** 🤖\n"
+        "I'm a coding and tutorial bot that helps find answers to most questions!\n"
+        "I'm under development, and you can help make me better!\n\n"
+        "📩 **Contact Developer:**"
     )
-    await update.message.reply_text(message, parse_mode="Markdown")
+    
+    keyboard = [
+        [InlineKeyboardButton("WhatsApp", url="https://wa.me/918629986990")],
+        [InlineKeyboardButton("Telegram", url="https://t.me/dwip_thedev")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(welcome_message, parse_mode="Markdown", reply_markup=reply_markup)
 
 # Message handler for user queries
 async def handle_message(update: Update, context: CallbackContext):
     user_input = update.message.text.lower()
+    cleaned_query = clean_query(user_input)  # Clean the query
     urls = read_urls()
 
-    results = search_urls(user_input, urls)
+    results = search_urls(cleaned_query, urls)
 
     if results:
         message = "**Here's what I found:**\n\n"
-        keyboard = [[InlineKeyboardButton(f"Click here {i+1}: {text}", url=url)] for i, (text, url) in enumerate(results)]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(message, reply_markup=reply_markup, parse_mode="Markdown")
+        keyboard = [[InlineKeyboardButton(f"Click here {i+1}", url=url)] for i, url in enumerate(results)]
     else:
-        await update.message.reply_text(
-            "❌ I couldn't find anything for your query.\n\n"
-            "📢 **Ask the developer to add this topic!**\n"
-            "📩 WhatsApp: +918629986990\n"
-            "📩 Telegram: @dwip_thedev",
-            parse_mode="Markdown"
+        message = (
+            f"⚠️ *I couldn't find an answer for '{user_input}'!*\n\n"
+            "Please message the developer to add this topic! 📩"
         )
+        keyboard = [
+            [InlineKeyboardButton("WhatsApp", url="https://wa.me/918629986990")],
+            [InlineKeyboardButton("Telegram", url="https://t.me/dwip_thedev")]
+        ]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(message, parse_mode="Markdown", reply_markup=reply_markup)
 
 # Main function to run the bot
 def main():
