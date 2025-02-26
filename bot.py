@@ -23,27 +23,28 @@ def clean_url_text(url):
         url_text = url_text.replace(ext, "")  # Remove extensions
     return url_text
 
-# Function to find the relevant text file in the root directory
-def get_category_file(query_keywords):
-    for filename in os.listdir():  # Search in the root folder
-        if filename.endswith(".txt"):  # Check for text files
-            file_keywords = set(filename.replace(".txt", "").split(","))  # Extract keywords from filename
-            if query_keywords & file_keywords:  # Check if any keyword matches
-                return filename  # Return the matching file
-    return None
+# Function to find all matching files based on query keywords
+def get_matching_files(query_keywords):
+    matching_files = []
+    for filename in os.listdir():  # Search in root folder
+        if filename.endswith(".txt") and any(keyword in filename.lower() for keyword in query_keywords):
+            matching_files.append(filename)
+    return matching_files
 
-# Function to read and filter URLs from a file based on the query
-def search_urls_in_file(query, category_file):
-    query_keywords = set(clean_query(query).split())  # Convert query to keyword set
+# Function to search URLs inside relevant files
+def search_urls(query):
+    query_keywords = clean_query(query).split()
+    matching_files = get_matching_files(query_keywords)  # Find all relevant files
     results = []
-    
-    with open(category_file, "r", encoding="utf-8") as file:
-        for line in file:
-            cleaned_line = clean_url_text(line)  # Clean the line for matching
-            if all(keyword in cleaned_line for keyword in query_keywords):  # Match all keywords
-                parsed_url = urlparse(line.strip())
-                site_name = parsed_url.netloc.replace("www.", "").split(".")[0].capitalize()
-                results.append((site_name, line.strip()))
+
+    for file in matching_files:
+        with open(file, "r") as f:
+            urls = f.read().splitlines()
+            for url in urls:
+                if all(keyword in clean_url_text(url) for keyword in query_keywords):  # Match all keywords
+                    parsed_url = urlparse(url)
+                    site_name = parsed_url.path.split("/")[-1] or parsed_url.netloc.split(".")[0].capitalize()
+                    results.append((site_name, url))
 
     return results
 
@@ -67,13 +68,9 @@ async def start(update: Update, context: CallbackContext):
 # Message handler for user queries
 async def handle_message(update: Update, context: CallbackContext):
     user_input = update.message.text.lower()
-    query_keywords = set(clean_query(user_input).split())
+    cleaned_query = clean_query(user_input)  # Clean the query
 
-    category_file = get_category_file(query_keywords)  # Find correct category file
-    if category_file:
-        results = search_urls_in_file(user_input, category_file)  # Search inside the file
-    else:
-        results = []
+    results = search_urls(cleaned_query)
 
     if results:
         message = "**Here's what I found:**\n\n"
