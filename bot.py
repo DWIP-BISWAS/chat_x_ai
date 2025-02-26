@@ -3,6 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
+from playwright.sync_api import sync_playwright
 
 # Function to read URLs from the text file
 def read_urls():
@@ -13,12 +14,15 @@ def read_urls():
 # Function to scrape website content
 def scrape_website(url):
     try:
-        response = requests.get(f"https://{url}")
-        soup = BeautifulSoup(response.text, "html.parser")
-        # Extract relevant content (e.g., paragraphs)
-        paragraphs = soup.find_all("p")
-        content = " ".join([p.get_text() for p in paragraphs])
-        return content
+        if not url.startswith("http"):
+            url = f"https://{url}"
+        with sync_playwright() as p:
+            browser = p.chromium.launch()
+            page = browser.new_page()
+            page.goto(url)
+            content = page.inner_text("body")  # Scrape all text in the body
+            browser.close()
+            return content
     except Exception as e:
         return f"Error scraping {url}: {e}"
 
@@ -31,22 +35,23 @@ async def handle_message(update: Update, context: CallbackContext):
     user_input = update.message.text.lower()
     urls = read_urls()
 
-    # Check if any URL matches the user's query
     found = False
     for url in urls:
-        if user_input in url:  # Check if the query is part of the URL
-            content = scrape_website(url)
-            if content:
-                await update.message.reply_text(f"Here's what I found about {user_input}:\n\n{content[:1000]}...")  # Limit response length
-                found = True
-                break
+        content = scrape_website(url)
+        if user_input in url or user_input in content.lower():
+            await update.message.reply_text(f"Here's what I found about {user_input}:\n\n{content[:1000]}...")
+            found = True
+            break
 
     if not found:
-        await update.message.reply_text(f"Sorry, I couldn't find any information about {user_input}.")
+        available_topics = ", ".join([url.split(".")[1] for url in urls])  # Extract domain names
+        await update.message.reply_text(
+            f"Sorry, I couldn't find any information about {user_input}.\n\n"
+            f"Available topics: {available_topics}"
+        )
 
 # Main function to run the bot
 def main():
-    # Replace 'YOUR_BOT_TOKEN' with your actual bot token
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN")  # Use environment variable for security
     application = Application.builder().token(bot_token).build()
 
