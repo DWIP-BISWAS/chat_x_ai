@@ -29,7 +29,7 @@ async def start(update: Update, context: CallbackContext):
         "I'm under development, and you can help make me better!\n\n"
         "📩 **Contact Developer:**\n"
         "👉 **WhatsApp:** [wa.me/918629986990](https://wa.me/918629986990)\n"
-        "👉 **Telegram:** @YourUsername"
+        "👉 **Telegram:** @dwip_the_dev"
     )
     await update.message.reply_text(welcome_message, parse_mode="Markdown")
 
