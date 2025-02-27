@@ -44,7 +44,7 @@ def get_matching_files(query_keywords):
 def search_urls(query):
     query_keywords = clean_query(query).split()
     matching_files = get_matching_files(query_keywords)
-    results = []
+    results = set()  # Use a set to store unique URLs
 
     for file in matching_files:
         with open(file, "r") as f:
@@ -53,9 +53,9 @@ def search_urls(query):
                 if all(keyword in clean_url_text(url) for keyword in query_keywords):
                     parsed_url = urlparse(url)
                     site_name = parsed_url.path.split("/")[-1] or parsed_url.netloc.split(".")[0].capitalize()
-                    results.append((site_name, url))
+                    results.add((site_name, url))  # Add to set to ensure uniqueness
 
-    return results
+    return list(results)  # Convert set back to list before returning
 
 # /start command
 async def start(update: Update, context: CallbackContext):
