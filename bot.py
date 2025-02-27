@@ -10,6 +10,9 @@ IGNORE_WORDS = {"what", ".", "!", ";", "`", "~", "@", "is", "how", "to", "#", "$
 # List of file extensions to remove from search queries
 EXTENSIONS = (".html", ".php", ".txt", ".json", ".xml", ".css", ".js")
 
+# List of compulsory files to always check
+COMPULSORY_FILES = ["urls.txt", "wiki1.txt"]
+
 # Function to clean user input
 def clean_query(query):
     words = re.split(r'\W+', query.lower())
@@ -29,6 +32,8 @@ def get_matching_files(query_keywords):
     for filename in os.listdir():
         if filename.endswith(".txt") and any(keyword in filename.lower() for keyword in query_keywords):
             matching_files.append(filename)
+    # Add compulsory files to the matching files list
+    matching_files.extend(COMPULSORY_FILES)
     return matching_files
 
 # Function to search URLs inside files
