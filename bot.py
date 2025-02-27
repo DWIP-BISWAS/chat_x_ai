@@ -32,8 +32,12 @@ def get_matching_files(query_keywords):
     for filename in os.listdir():
         if filename.endswith(".txt") and any(keyword in filename.lower() for keyword in query_keywords):
             matching_files.append(filename)
-    # Add compulsory files to the matching files list
-    matching_files.extend(COMPULSORY_FILES)
+    
+    # Add compulsory files only if they are not already in the matching_files list
+    for comp_file in COMPULSORY_FILES:
+        if comp_file not in matching_files:
+            matching_files.append(comp_file)
+    
     return matching_files
 
 # Function to search URLs inside files
