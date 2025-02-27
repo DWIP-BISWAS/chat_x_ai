@@ -56,14 +56,13 @@ def search_urls(query):
                     results.add((site_name, url))  # Add to set to ensure uniqueness
 
     return list(results)  # Convert set back to list before returning
-
+    
 # /start command
 async def start(update: Update, context: CallbackContext):
     welcome_message = (
         "**Welcome to X.AI!** 🤖\n"
-        "I'm a wiki bot to helps you find answers to most questions!\n"
-        "I'm still under development, and you can help make me better by contributing to this project! Use /contribute to learn more.\n\n"
-        "Quick Tips: Use _ or - instead of   (space). It helps me understand your query better.\n"
+        "I'm a wiki bot that helps find answers to most questions!\n"
+         "I'm under development, and you can help make me better by contributing to this project! Use /contribute to learn more.\n"
         "Use /help to see available commands!\n\n"
         "📩 **Contact Developer:**"
     )
