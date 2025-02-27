@@ -59,14 +59,16 @@ def search_urls(query):
 
 # /start command
 async def start(update: Update, context: CallbackContext):
-    welcome_message = (
-        "**Welcome to X.AI!** 🤖\n"
-        "I'm a wiki bot to helps you find answers to most questions!\n"
-        "I'm still under development, and you can help make me better by contributing to this project! Use /contribute to learn more.\n\n"
-        "Quick Tips: Use "_" or "-" instead of " "(space). It helps me understand your query better.\n"
-        "Use /help to see available commands!\n\n"
-        "📩 **Contact Developer:**"
-    )
+    welcome_message = """
+**Welcome to X.AI!** 🤖
+I'm a wiki bot that helps you find answers to most questions!
+I'm still under development, and you can help make me better by contributing to this project! Use /contribute to learn more.
+
+Quick Tips: Use "_" or "-" instead of " " (space). It helps me understand your query better.
+Use /help to see available commands!
+
+📩 **Contact Developer:**
+"""
     
     keyboard = [
         [InlineKeyboardButton("WhatsApp", url="https://wa.me/918629986990")],
@@ -78,39 +80,42 @@ async def start(update: Update, context: CallbackContext):
 
 # /help command
 async def help_command(update: Update, context: CallbackContext):
-    help_text = (
-        "**Available Commands:**\n"
-        "/start - Start the bot\n"
-        "/help - Show this help message\n"
-        "/info - Get bot info\n"
-        "/contribute - Contribute to X.AI\n"
-        "/contact - Contact the developer\n\n"
-        "Just type a question, and I'll try to find an answer for you! 😊"
-    )
+    help_text = """
+**Available Commands:**
+/start - Start the bot
+/help - Show this help message
+/info - Get bot info
+/contribute - Contribute to X.AI
+/contact - Contact the developer
+
+Just type a question, and I'll try to find an answer for you! 😊
+"""
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
 # /info command
 async def info_command(update: Update, context: CallbackContext):
-    info_text = (
-        "**X.AI Bot Info:**\n"
-        "🤖 **Version:** 1.0\n"
-        "📌 **Purpose:** Coding and tutorial assistant\n"
-        "💡 **Status:** Under development\n"
-        "🛠 **Developer:** [Dwip](https://t.me/dwip_thedev)\n\n"
-        "Want to contribute? Use /contribute!"
-    )
+    info_text = """
+**X.AI Bot Info:**
+🤖 **Version:** 1.0
+📌 **Purpose:** Coding and tutorial assistant
+💡 **Status:** Under development
+🛠 **Developer:** [Dwip](https://t.me/dwip_thedev)
+
+Want to contribute? Use /contribute!
+"""
     await update.message.reply_text(info_text, parse_mode="Markdown")
 
 # /contribute command
 async def contribute_command(update: Update, context: CallbackContext):
-    contribute_text = (
-        "**Contribute to X.AI!** 🚀\n"
-        "Want to help improve this bot? You can contribute by:\n"
-        "- Suggesting new features\n"
-        "- Providing coding resources\n"
-        "- Reporting bugs\n\n"
-        "📩 Contact the developer to contribute!"
-    )
+    contribute_text = """
+**Contribute to X.AI!** 🚀
+Want to help improve this bot? You can contribute by:
+- Suggesting new features
+- Providing coding resources
+- Reporting bugs
+
+📩 Contact the developer to contribute!
+"""
     keyboard = [
         [InlineKeyboardButton("Contact Dev", url="https://t.me/dwip_thedev")]
     ]
@@ -140,10 +145,7 @@ async def handle_message(update: Update, context: CallbackContext):
         message = "**Here's what I found:**\n\n"
         keyboard = [[InlineKeyboardButton(f"Click here {i+1}", url=url)] for i, (_, url) in enumerate(results)]
     else:
-        message = (
-            f"⚠️ *I couldn't find an answer for '{user_input}'!*\n\n"
-            "Please message the developer to add this topic! 📩"
-        )
+        message = f"⚠️ *I couldn't find an answer for '{user_input}'!*\n\nPlease message the developer to add this topic! 📩"
         keyboard = [
             [InlineKeyboardButton("WhatsApp", url="https://wa.me/918629986990")],
             [InlineKeyboardButton("Telegram", url="https://t.me/dwip_thedev")]
