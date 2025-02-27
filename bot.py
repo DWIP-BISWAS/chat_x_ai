@@ -61,8 +61,8 @@ def search_urls(query):
 async def start(update: Update, context: CallbackContext):
     welcome_message = (
         "**Welcome to X.AI!** 🤖\n"
-        "I'm a coding and tutorial bot that helps find answers to most questions!\n"
-         "I'm under development, and you can help make me better by contributing to this project! Use /contribute to learn more.\n\n"
+        "I'm a wiki bot to helps you find answers to most questions!\n"
+        "I'm still under development, and you can help make me better by contributing to this project! Use /contribute to learn more.\n\n"
         "Quick Tips: Use "_" or "-" instead of " "(space). It helps me understand your query better.\n"
         "Use /help to see available commands!\n\n"
         "📩 **Contact Developer:**"
