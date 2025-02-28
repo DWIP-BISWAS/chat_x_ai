@@ -11,7 +11,7 @@ IGNORE_WORDS = {"what", ".", "!", ";", "`", "~", "@", "is", "how", "to", "#", "$
 EXTENSIONS = (".html", ".php", ".txt", ".json", ".xml", ".css", ".js")
 
 # List of compulsory files to always check
-COMPULSORY_FILES = ["urls.txt", "wiki1.txt", "wiki2.txt"]
+COMPULSORY_FILES = ["urls.txt", "wiki1.txt", "wiki2.txt", "wiki3.txt", "wiki4.txt", "wiki5.txt", "wiki6.txt", "wiki7.txt", "wiki8.txt", "wiki9.txt", "wiki10.txt", "wiki11.txt", "wiki12.txt", "wiki13.txt", "wiki14.txt", "wiki15.txt", "wiki16.txt", "wiki17.txt", "wiki18.txt", "wiki19.txt", "wiki20.txt"]
 
 # Function to clean user input
 def clean_query(query):
